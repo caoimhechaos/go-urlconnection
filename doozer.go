@@ -31,7 +31,9 @@ package urlconnection
 
 import (
 	"errors"
+	"fmt"
 	"github.com/4ad/doozer"
+	"math/rand"
 	"net"
 	"net/url"
 )
@@ -53,17 +55,46 @@ func SetupDoozer(buri, uri string) error {
  * Makes a TCP connection to the given host:port pair.
  */
 func doozerConnect(dest *url.URL) (net.Conn, error) {
+	var info *doozer.FileInfo
 	var data []byte
+	var rev int64
 	var err error
 
 	if doozer_conn == nil {
 		return nil, errors.New("Please use SetupDoozer first")
 	}
 
-	// TODO(tonnerre): Deal with directories here.
-	data, _, err = doozer_conn.Get(dest.Path, nil)
+	_, rev, err = doozer_conn.Stat(dest.Path, nil)
 	if err != nil {
 		return nil, err
+	}
+
+	info, err = doozer_conn.Statinfo(rev, dest.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.IsDir {
+		var names []string
+		var name string
+		var selected int
+
+		names, err = doozer_conn.Getdir(dest.Path, rev, 0, -1)
+		if err != nil {
+			return nil, err
+		}
+
+		selected = rand.Intn(len(names))
+		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
+		data, _, err = doozer_conn.Get(name, nil)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		data, _, err = doozer_conn.Get(dest.Path, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return net.Dial("tcp", string(data))
