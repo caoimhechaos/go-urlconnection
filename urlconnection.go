@@ -37,11 +37,7 @@ import (
 
 type ConnectionHandler func(*url.URL) (net.Conn, error)
 
-var handlers map[string]ConnectionHandler
-
-func init() {
-	handlers = make(map[string]ConnectionHandler)
-}
+var handlers map[string]ConnectionHandler = make(map[string]ConnectionHandler)
 
 /**
  * Used by clients to register their handlers. The URL schema "name"
