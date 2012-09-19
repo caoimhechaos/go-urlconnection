@@ -9,7 +9,7 @@ env = Environment(ENV = {'GOROOT': '/usr/lib/go'}, TOOLS=['default', 'go'],
 lib = env.Go('urlconnection', ["doozer.go", "tcp.go", "urlconnection.go"])
 pack = env.GoPack('urlconnection', lib)
 
-env.Install(env['DESTDIR'] + env['GO_PKGROOT'] + "/net", pack)
-env.Alias('install', [env['DESTDIR'] + env['GO_PKGROOT'] + "/net"])
+env.Install(env['DESTDIR'] + env['GO_PKGROOT'] + "/ancientsolutions.com", pack)
+env.Alias('install', [env['DESTDIR'] + env['GO_PKGROOT'] + "/ancientsolutions.com"])
 
 opts.Save('options.conf', env)
