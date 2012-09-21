@@ -65,7 +65,8 @@ func doozerConnect(dest *url.URL) (net.Conn, error) {
 		return nil, errors.New("Please use SetupDoozer first")
 	}
 
-	_, rev, err = doozer_conn.Stat(dest.Path, nil)
+	// Query the paths at the latest revision.
+	rev, err = doozer_conn.Rev()
 	if err != nil {
 		return nil, err
 	}
@@ -87,12 +88,12 @@ func doozerConnect(dest *url.URL) (net.Conn, error) {
 
 		selected = rand.Intn(len(names))
 		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
-		data, _, err = doozer_conn.Get(name, nil)
+		data, _, err = doozer_conn.Get(name, &rev)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		data, _, err = doozer_conn.Get(dest.Path, nil)
+		data, _, err = doozer_conn.Get(dest.Path, &rev)
 		if err != nil {
 			return nil, err
 		}
