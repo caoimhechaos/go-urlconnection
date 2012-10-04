@@ -36,17 +36,26 @@ import (
 	"math/rand"
 	"net"
 	"net/url"
+	"time"
 )
 
-var doozer_conn *doozer.Conn
+type doozerConnection struct {
+	doozer_conn *doozer.Conn
+}
 
 /**
  * Set the Doozer configuration parameters to be used.
  */
 func SetupDoozer(buri, uri string) error {
 	var err error
+	var doozer_conn *doozer.Conn
 
 	doozer_conn, err = doozer.DialUri(uri, buri)
+	if err != nil {
+		RegisterConnectionHandler("dz", doozerConnection{
+			doozer_conn: doozer_conn,
+		})
+	}
 	return err
 }
 
@@ -54,23 +63,23 @@ func SetupDoozer(buri, uri string) error {
  * Connect to a host:port pair given in a Doozer file.
  * Makes a TCP connection to the given host:port pair.
  */
-func doozerConnect(dest *url.URL) (net.Conn, error) {
+func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
 	var info *doozer.FileInfo
 	var data []byte
 	var rev int64
 	var err error
 
-	if doozer_conn == nil {
+	if conn.doozer_conn == nil {
 		return nil, errors.New("Please use SetupDoozer first")
 	}
 
 	// Query the paths at the latest revision.
-	rev, err = doozer_conn.Rev()
+	rev, err = conn.doozer_conn.Rev()
 	if err != nil {
 		return nil, err
 	}
 
-	info, err = doozer_conn.Statinfo(rev, dest.Path)
+	info, err = conn.doozer_conn.Statinfo(rev, dest.Path)
 	if err != nil {
 		return nil, err
 	}
@@ -80,19 +89,19 @@ func doozerConnect(dest *url.URL) (net.Conn, error) {
 		var name string
 		var selected int
 
-		names, err = doozer_conn.Getdir(dest.Path, rev, 0, -1)
+		names, err = conn.doozer_conn.Getdir(dest.Path, rev, 0, -1)
 		if err != nil {
 			return nil, err
 		}
 
 		selected = rand.Intn(len(names))
 		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
-		data, _, err = doozer_conn.Get(name, &rev)
+		data, _, err = conn.doozer_conn.Get(name, &rev)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		data, _, err = doozer_conn.Get(dest.Path, &rev)
+		data, _, err = conn.doozer_conn.Get(dest.Path, &rev)
 		if err != nil {
 			return nil, err
 		}
@@ -102,8 +111,54 @@ func doozerConnect(dest *url.URL) (net.Conn, error) {
 }
 
 /**
- * Register the connection handler for TCP.
+ * Connect to a host:port pair given in a Doozer file.
+ * Makes a TCP connection to the given host:port pair.
+ * The attempt is aborted after "timeout".
  */
-func init() {
-	RegisterConnectionHandler("dz", doozerConnect)
+func (conn doozerConnection) ConnectTimeout(dest *url.URL,
+	timeout time.Duration) (net.Conn, error) {
+	var info *doozer.FileInfo
+	var data []byte
+	var rev int64
+	var err error
+
+	if conn.doozer_conn == nil {
+		return nil, errors.New("Please use SetupDoozer first")
+	}
+
+	// Query the paths at the latest revision.
+	rev, err = conn.doozer_conn.Rev()
+	if err != nil {
+		return nil, err
+	}
+
+	info, err = conn.doozer_conn.Statinfo(rev, dest.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	if info.IsDir {
+		var names []string
+		var name string
+		var selected int
+
+		names, err = conn.doozer_conn.Getdir(dest.Path, rev, 0, -1)
+		if err != nil {
+			return nil, err
+		}
+
+		selected = rand.Intn(len(names))
+		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
+		data, _, err = conn.doozer_conn.Get(name, &rev)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		data, _, err = conn.doozer_conn.Get(dest.Path, &rev)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return net.DialTimeout("tcp", string(data), timeout)
 }
