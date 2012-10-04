@@ -33,9 +33,13 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"time"
 )
 
-type ConnectionHandler func(*url.URL) (net.Conn, error)
+type ConnectionHandler interface {
+	Connect(dest *url.URL) (net.Conn, error)
+	ConnectTimeout(dest *url.URL, timeout time.Duration) (net.Conn, error)
+}
 
 var handlers map[string]ConnectionHandler = make(map[string]ConnectionHandler)
 
@@ -69,7 +73,35 @@ func Connect(tourl string) (net.Conn, error) {
 
 	if _, ok = handlers[u.Scheme]; ok {
 		var handler ConnectionHandler = handlers[u.Scheme]
-		return handler(u)
+		return handler.Connect(u)
+	}
+
+	return nil, errors.New("No handler found for " + u.Scheme)
+}
+
+/**
+ * Establish a connection to the service specified in "tourl".
+ * For example, tcp://[::1]:8080 will establish a TCP connection
+ * to port 8080 on localhost, as will tcp://[::1]/8080.
+ * Abort the attempt after "timeout" has expired.
+ */
+func ConnectTimeout(tourl string, timeout time.Duration) (net.Conn, error) {
+	var u *url.URL
+	var err error
+	var ok bool
+
+	u, err = url.Parse(tourl)
+	if err != nil {
+		return nil, err
+	}
+
+	if !u.IsAbs() {
+		return nil, errors.New("Absolute URL required")
+	}
+
+	if _, ok = handlers[u.Scheme]; ok {
+		var handler ConnectionHandler = handlers[u.Scheme]
+		return handler.ConnectTimeout(u, timeout)
 	}
 
 	return nil, errors.New("No handler found for " + u.Scheme)

@@ -32,14 +32,17 @@ package urlconnection
 import (
 	"net"
 	"net/url"
+	"time"
 )
+
+type tcpConnection struct{}
 
 /**
  * TCP connection creator.
  * Make a TCP connection to the given host (in format
  * tcp://[::1]:123 or tcp://[::1]/123.
  */
-func tcpConnect(dest *url.URL) (net.Conn, error) {
+func (self tcpConnection) Connect(dest *url.URL) (net.Conn, error) {
 	var host, port, hostport string
 
 	host = dest.Host
@@ -53,8 +56,28 @@ func tcpConnect(dest *url.URL) (net.Conn, error) {
 }
 
 /**
+ * TCP connection creator.
+ * Make a TCP connection to the given host (in format
+ * tcp://[::1]:123 or tcp://[::1]/123. Abort attempt after
+ * "timeout" has expired.
+ */
+func (self tcpConnection) ConnectTimeout(dest *url.URL,
+	timeout time.Duration) (net.Conn, error) {
+	var host, port, hostport string
+
+	host = dest.Host
+	hostport = host
+	if len(dest.Path) > 0 {
+		port = dest.Path[1:]
+		hostport = net.JoinHostPort(host, port)
+	}
+
+	return net.DialTimeout("tcp", hostport, timeout)
+}
+
+/**
  * Register the connection handler for TCP.
  */
 func init() {
-	RegisterConnectionHandler("tcp", tcpConnect)
+	RegisterConnectionHandler("tcp", tcpConnection{})
 }
