@@ -52,7 +52,7 @@ func SetupDoozer(buri, uri string) error {
 	var doozer_conn *doozer.Conn
 
 	doozer_conn, err = doozer.DialUri(uri, buri)
-	if err != nil {
+	if err == nil {
 		RegisterConnectionHandler("dz", doozerConnection{
 			doozer_conn: doozer_conn,
 		})
