@@ -60,54 +60,90 @@ func SetupDoozer(buri, uri string) error {
 }
 
 /**
- * Connect to a host:port pair given in a Doozer file.
- * Makes a TCP connection to the given host:port pair.
+ * Queries Doozer for host:port pairs for the given URL. Returns the
+ * corresponding pairs as a string.
  */
-func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
+func (conn doozerConnection) lookup(dest *url.URL) ([]string, error) {
 	var info *doozer.FileInfo
+	var ret []string
 	var data []byte
 	var rev int64
 	var err error
 
 	if conn.doozer_conn == nil {
-		return nil, errors.New("Please use SetupDoozer first")
+		return []string{}, errors.New("Please use SetupDoozer first")
 	}
 
 	// Query the paths at the latest revision.
 	rev, err = conn.doozer_conn.Rev()
 	if err != nil {
-		return nil, err
+		return []string{}, errors.New("Rev: " + err.Error())
 	}
 
 	info, err = conn.doozer_conn.Statinfo(rev, dest.Path)
 	if err != nil {
-		return nil, err
+		return []string{}, errors.New("Statinfo " + dest.Path + ": " +
+			err.Error())
 	}
 
 	if info.IsDir {
 		var names []string
+		var ids []int
+		var id int
 		var name string
-		var selected int
 
 		names, err = conn.doozer_conn.Getdir(dest.Path, rev, 0, -1)
 		if err != nil {
-			return nil, err
+			return []string{}, errors.New("Getdir " + dest.Path + ": " +
+				err.Error())
 		}
 
-		selected = rand.Intn(len(names))
-		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
-		data, _, err = conn.doozer_conn.Get(name, &rev)
-		if err != nil {
-			return nil, err
+		ids = rand.Perm(len(names))
+		for _, id = range ids {
+			name = fmt.Sprintf("%s/%s", dest.Path, names[id])
+			data, _, err = conn.doozer_conn.Get(name, &rev)
+			if err != nil {
+				err = errors.New("Get " + name + ": " +
+					err.Error())
+			}
 		}
 	} else {
 		data, _, err = conn.doozer_conn.Get(dest.Path, &rev)
 		if err != nil {
-			return nil, err
+			return []string{}, errors.New("Get " + dest.Path + ": " +
+				err.Error())
 		}
+		ret = append(ret, string(data))
 	}
 
-	return net.Dial("tcp", string(data))
+	if len(ret) == 0 {
+		return []string{}, err
+	}
+	return ret, nil
+}
+
+/**
+ * Connect to a host:port pair given in a Doozer file.
+ * Makes a TCP connection to the given host:port pair.
+ */
+func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
+	var candidates []string
+	var candidate string
+	var err error
+
+	candidates, err = conn.lookup(dest)
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate = range candidates {
+		var c net.Conn
+
+		c, err = net.Dial("tcp", candidate)
+		if err == nil {
+			return c, nil
+		}
+	}
+	return nil, err
 }
 
 /**
@@ -117,48 +153,22 @@ func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
  */
 func (conn doozerConnection) ConnectTimeout(dest *url.URL,
 	timeout time.Duration) (net.Conn, error) {
-	var info *doozer.FileInfo
-	var data []byte
-	var rev int64
+	var candidates []string
+	var candidate string
 	var err error
 
-	if conn.doozer_conn == nil {
-		return nil, errors.New("Please use SetupDoozer first")
-	}
-
-	// Query the paths at the latest revision.
-	rev, err = conn.doozer_conn.Rev()
+	candidates, err = conn.lookup(dest)
 	if err != nil {
 		return nil, err
 	}
+	for _, candidate = range candidates {
+		var c net.Conn
+		var err error
 
-	info, err = conn.doozer_conn.Statinfo(rev, dest.Path)
-	if err != nil {
-		return nil, err
-	}
-
-	if info.IsDir {
-		var names []string
-		var name string
-		var selected int
-
-		names, err = conn.doozer_conn.Getdir(dest.Path, rev, 0, -1)
-		if err != nil {
-			return nil, err
-		}
-
-		selected = rand.Intn(len(names))
-		name = fmt.Sprintf("%s/%s", dest.Path, names[selected])
-		data, _, err = conn.doozer_conn.Get(name, &rev)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		data, _, err = conn.doozer_conn.Get(dest.Path, &rev)
-		if err != nil {
-			return nil, err
+		c, err = net.DialTimeout("tcp", candidate, timeout)
+		if err == nil {
+			return c, nil
 		}
 	}
-
-	return net.DialTimeout("tcp", string(data), timeout)
+	return nil, err
 }
