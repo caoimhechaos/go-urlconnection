@@ -32,7 +32,7 @@ package urlconnection
 import (
 	"errors"
 	"fmt"
-	"github.com/4ad/doozer"
+	"github.com/ha/doozer"
 	"math/rand"
 	"net"
 	"net/url"
@@ -43,9 +43,9 @@ type doozerConnection struct {
 	doozer_conn *doozer.Conn
 }
 
-/**
- * Set the Doozer configuration parameters to be used.
- */
+/*
+Set the Doozer configuration parameters to be used.
+*/
 func SetupDoozer(buri, uri string) error {
 	var err error
 	var doozer_conn *doozer.Conn
@@ -59,10 +59,19 @@ func SetupDoozer(buri, uri string) error {
 	return err
 }
 
-/**
- * Queries Doozer for host:port pairs for the given URL. Returns the
- * corresponding pairs as a string.
- */
+/*
+Use an existing Doozer client connection for picking backends.
+*/
+func UseExistingDoozer(conn *doozer.Conn) {
+	RegisterConnectionHandler("dz", doozerConnection{
+		doozer_conn: conn,
+	})
+}
+
+/*
+Queries Doozer for host:port pairs for the given URL. Returns the
+corresponding pairs as a string.
+*/
 func (conn doozerConnection) lookup(dest *url.URL) ([]string, error) {
 	var info *doozer.FileInfo
 	var ret []string
@@ -122,10 +131,10 @@ func (conn doozerConnection) lookup(dest *url.URL) ([]string, error) {
 	return ret, nil
 }
 
-/**
- * Connect to a host:port pair given in a Doozer file.
- * Makes a TCP connection to the given host:port pair.
- */
+/*
+Connect to a host:port pair given in a Doozer file.
+Makes a TCP connection to the given host:port pair.
+*/
 func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
 	var candidates []string
 	var candidate string
@@ -146,11 +155,11 @@ func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
 	return nil, err
 }
 
-/**
- * Connect to a host:port pair given in a Doozer file.
- * Makes a TCP connection to the given host:port pair.
- * The attempt is aborted after "timeout".
- */
+/*
+Connect to a host:port pair given in a Doozer file.
+Makes a TCP connection to the given host:port pair.
+The attempt is aborted after "timeout".
+*/
 func (conn doozerConnection) ConnectTimeout(dest *url.URL,
 	timeout time.Duration) (net.Conn, error) {
 	var candidates []string
