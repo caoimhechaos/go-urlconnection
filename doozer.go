@@ -144,6 +144,7 @@ func (conn doozerConnection) Connect(dest *url.URL) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = errors.New("No connection candidates have been found")
 	for _, candidate = range candidates {
 		var c net.Conn
 
@@ -170,6 +171,7 @@ func (conn doozerConnection) ConnectTimeout(dest *url.URL,
 	if err != nil {
 		return nil, err
 	}
+	err = errors.New("No connection candidates have been found")
 	for _, candidate = range candidates {
 		var c net.Conn
 		var err error
