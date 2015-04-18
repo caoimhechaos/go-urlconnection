@@ -111,7 +111,9 @@ func (conn doozerConnection) lookup(dest *url.URL) ([]string, error) {
 		for _, id = range ids {
 			name = fmt.Sprintf("%s/%s", dest.Path, names[id])
 			data, _, err = conn.doozer_conn.Get(name, &rev)
-			if err != nil {
+			if err == nil {
+				ret = append(ret, string(data))
+			} else {
 				err = errors.New("Get " + name + ": " +
 					err.Error())
 			}
