@@ -1,6 +1,7 @@
 package urlconnection
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -10,10 +11,8 @@ import (
 	"net/url"
 	"time"
 
-	"golang.org/x/net/context"
-
-	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
+	clientv3 "go.etcd.io/etcd/client/v3"
+	"go.etcd.io/etcd/api/mvccpb"
 )
 
 type etcdConnection struct {
